@@ -73,13 +73,23 @@ def check_help_request(arguments):
         README_path = os.path.normpath(os.path.join(replace_script_path, "../../README.md"))
 
         f = open(README_path, 'r')
-        print("\n\t#######      replace documentation      #######\n\n")
+        print("\n\t#######      replace documentation      #######\n")
 
         for line in f:
-            # line = line.replace('# ', '')
+            if line == "```sh\n" or line == "```\n" or line == "<pre>\n" or line == "</pre>\n":
+                continue
+            line = line.replace('```sh', '')
+            line = line.replace('```', '')
+            line = line.replace('<pre>', '')
+            line = line.replace('</b>', '')
+            line = line.replace('<b>', '')
+            line = line.replace('<!-- -->', '')
+            line = line.replace('<br/>', '')
+            line = line.replace('```sh', '')
+            line = line.replace('***', '')
             line = line.replace('**', '')
             line = line.replace('*', '')
-            print(" " + line)
+            print(" " + line, end='')
         exit()
 
 

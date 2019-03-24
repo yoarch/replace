@@ -27,7 +27,6 @@ python >= 3
         [--binary_exclusion] [--binary_accepted]
         [--symlink_exclusion] [--symlink_accepted]
 <b>options:</b>
-
 <!-- -->        <b>-h, --help</b>        show this help message and exit
 <!-- -->        <b>-l</b>        perform local replacement in <b>FOLDER_PATH</b>. Enabled by default
 <!-- -->        <b>-r</b>        perform recursive replacement from <b>FOLDER_PATH</b>
@@ -51,6 +50,7 @@ python >= 3
 <!-- -->        <b>--symlink_accepted, --no_symlink_exclusion, --symlink</b>        refuse symlinks. Enabled by default
 <!-- -->        <b>--symlink_exclusion, --no_symlink</b>        accept symlinks
 </pre>
+
 
 # examples
 for help:<br/>
