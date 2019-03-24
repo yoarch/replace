@@ -13,19 +13,19 @@ python >= 3
 
 # usage
 <pre>
-<b>python replace.py</b> [-h] [-l] [-r] [-s] [-a] [-c]
-                  [--initial_string <b>INITIAL_STRING</b>]
-                  [--destination_string <b>DESTINATION_STRING</b>]
-                  [--directory_path <b>FOLDER_PATH</b>]
-                  [--file_paths_list <b>FILE_PATH_01 FILE_PATH_02 ...</b>]
-                  [--filename_must_end_by <b>END_STRING_01 END_STRING_02 ...</b>]
-                  [--no_ask_confirmation] [--case_insensitive ]
-                  [--extension_filter] [--all_extensions]
-                  [--add_excluded_extensions <b>END_STRING_01 END_STRING_02 ...</b>]
-                  [--add_excluded_strings <b>STRING_01 STRING_02 ...</b>]
-                  [--excluded_paths <b>EXCLUDED_PATH_01 EXCLUDED_PATH_01 ...</b>]
-                  [--binary_exclusion] [--binary_accepted]
-                  [--symlink_exclusion] [--symlink_accepted]
+<b>replace</b> [-h] [-l] [-r] [-s] [-a] [-c]
+        [--initial_string <b>INITIAL_STRING</b>]
+        [--destination_string <b>DESTINATION_STRING</b>]
+        [--directory_path <b>FOLDER_PATH</b>]
+        [--file_paths_list <b>FILE_PATH_01 FILE_PATH_02 ...</b>]
+        [--filename_must_end_by <b>END_STRING_01 END_STRING_02 ...</b>]
+        [--no_ask_confirmation] [--case_insensitive ]
+        [--extension_filter] [--all_extensions]
+        [--add_excluded_extensions <b>END_STRING_01 END_STRING_02 ...</b>]
+        [--add_excluded_strings <b>STRING_01 STRING_02 ...</b>]
+        [--excluded_paths <b>EXCLUDED_PATH_01 EXCLUDED_PATH_01 ...</b>]
+        [--binary_exclusion] [--binary_accepted]
+        [--symlink_exclusion] [--symlink_accepted]
 <b>options:</b>
 
 <!-- -->        <b>-h, --help</b>        show this help message and exit
