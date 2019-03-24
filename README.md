@@ -4,7 +4,7 @@ Complete string replace tool on the all file system.
 The replacefs tool permits to perform massive and controlled string replacements in files over the all file system in an intuitive and pleasant way. You will be able to replace a defined string to another recursively from a path, or locally in a defined path or in a list of files.
 
 # installation
-```
+```sh
 sudo pip3 install replacefs
 ```
 
@@ -54,22 +54,22 @@ python >= 3
 
 # examples
 for help:<br/>
-```
+```sh
 replace --help
 python replace.py -h
 ```
 
 **local** replace "titi" occurrences to "toto" in current directory:<br/>
-```
+```sh
 replace -l titi toto .
 ```
 
 **recursive** replace from the child directory "test":<br/>
-```
+```sh
 replace -r titi toto test
 ```
 **specific** replace in the files "test01" "test/test02":<br/>
-```
+```sh
 replace -s titi toto test01 test/test02
 ```
 
@@ -82,7 +82,7 @@ use   ***--add_excluded_extensions*** or ***--filter_extensions*** to add some m
 
 # suggestions
 some useful bash functions with replace:<br/>
-```
+```sh
 function rp {
 #ex:  rp titi toto
 
