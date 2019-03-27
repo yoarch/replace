@@ -1,5 +1,5 @@
 # replacefs
-Complete string replace tool on the all file system.
+Search and replace tool for strings on the all system.
 
 The replacefs tool permits to perform massive and controlled string replacements in files over the all file system in an intuitive and pleasant way. You will be able to replace a defined string to another recursively from a path, or locally in a defined path or in a list of files.
 
