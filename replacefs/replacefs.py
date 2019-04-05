@@ -11,7 +11,8 @@ from os import stat
 from pwd import getpwuid
 
 import logging
-from logger import build_logger
+from .logger import build_logger
+# from logger import build_logger
 logger = build_logger("replace", level=logging.INFO)
 
 
@@ -69,8 +70,7 @@ SUPPORTED_SHORT_INDICATORS = ['l', 'r', 's', 'a', 'c']
 
 def check_help_request(arguments):
     if len(arguments) == 2 and (arguments[1] == "-h" or arguments[1] == "--help"):
-        replace_script_path = get_full_path_joined(arguments[0])
-        README_path = os.path.normpath(os.path.join(replace_script_path, "../../README.md"))
+        README_path = "/usr/lib/replace/README.md"
 
         f = open(README_path, 'r')
         print("\n\t#######      replace documentation      #######\n")
@@ -812,7 +812,7 @@ def check_symlink_path(file_path):
     return False
 
 
-def get_temporary_file_path(file_path):
+def get_temporary_file_path(file_path, excluded_paths):
     temporary_file_path = file_path + ".tmp"
     if os.path.exists(temporary_file_path):
         temporary_file_path = find_a_temporary_file_not_existing(file_path)
@@ -870,7 +870,7 @@ def replace_local_recursive(directory_path, initial_string, destination_string, 
 
             file_mask = get_file_permission_mask(file_path)
 
-            temporary_file_path = get_temporary_file_path(file_path)
+            temporary_file_path = get_temporary_file_path(file_path, excluded_paths)
             if not check_able_create_temporary(temporary_file_path, file_mask):
                 continue
 
@@ -889,7 +889,7 @@ def check_path_folder_exists(folder_path):
     if not os.path.isdir(folder_path):
         print_WARNING_in_red()
         print("the %s folder path doesn't exist" % folder_path)
-        raise ValueError("the directory path to apply %s doesn't exist, you may review it" % directory_path_to_apply)
+        raise ValueError("the directory path to apply %s doesn't exist, you may review it" % folder_path)
 
 
 def check_path_exists(file_path):
@@ -927,7 +927,7 @@ def replace_specific(list_files_paths_to_apply, initial_string, destination_stri
                 continue
 
         file_mask = get_file_permission_mask(file_path)
-        temporary_file_path = get_temporary_file_path(file_path)
+        temporary_file_path = get_temporary_file_path(file_path, [])
         if not check_able_create_temporary(temporary_file_path, file_mask):
             continue
 
@@ -1011,7 +1011,7 @@ def check_integrity_of_mode_request(local, recursive, specific, directory_path_t
     return local, recursive, specific, directory_path_to_apply, list_files_paths_to_apply
 
 
-if __name__ == '__main__':
+def main():
     check_help_request(sys.argv)
     check_nb_parameters(sys.argv)
     filename_must_end_by, local, recursive, specific, ask_replace, case_sensitive, \
@@ -1079,3 +1079,6 @@ if __name__ == '__main__':
         raise ValueError("please pick only one mode with the -l, -r or -s short options")
 
     display_occurrences_found_message(nb_occurrences_found, nb_occurrences_replaced, initial_string)
+
+if __name__ == "__main__":
+    main()

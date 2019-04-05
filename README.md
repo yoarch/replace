@@ -13,7 +13,7 @@ python >= 3
 
 # usage
 <pre>
-<b>replace</b> [-h] [-l] [-r] [-s] [-a] [-c]
+<b>replacefs</b> [-h] [-l] [-r] [-s] [-a] [-c]
         [--initial_string <b>INITIAL_STRING</b>]
         [--destination_string <b>DESTINATION_STRING</b>]
         [--directory_path <b>FOLDER_PATH</b>]
@@ -55,22 +55,23 @@ python >= 3
 # examples
 for help:<br/>
 ```sh
-replace --help
-python replace.py -h
+rp -h
+or
+replacefs --help
 ```
 
 **local** replace "titi" occurrences to "toto" in current directory:<br/>
 ```sh
-replace -l titi toto .
+rp -l titi toto .
 ```
 
 **recursive** replace from the child directory "test":<br/>
 ```sh
-replace -r titi toto test
+replacefs -r titi toto test
 ```
 **specific** replace in the files "test01" "test/test02":<br/>
 ```sh
-replace -s titi toto test01 test/test02
+replacefs -s titi toto test01 test/test02
 ```
 
 # black list extensions
@@ -83,24 +84,24 @@ use   ***--add_excluded_extensions*** or ***--filter_extensions*** to add some m
 # suggestions
 some useful bash functions with replace:<br/>
 ```sh
-function rp {
-#ex:  rp titi toto
+function replace {
+#ex:  replace titi toto
 
 	nb_param="$#"
 
 	if [ "$nb_param" -lt 2 ]; then
 		echo -e "\n\t$WARNING needs at least 2 strings arguments such as:\n\t\treplace titi toto"
 	elif [ "$nb_param" -eq 2 ]; then
-		replace -l "$@" .
+		rp -l "$@" .
 	elif [ "$nb_param" -eq 3 ]; then
-		replace -l "$@"
+		rp -l "$@"
 	elif [ "$nb_param" -gt 3 ]; then
 		echo -e "$WARNING specific mode replace"
-		replace -s "$@"
+		rp -s "$@"
 	fi
 }
 
-function rplocal { rp $@; }
+function rplocal { replace $@; }
 
 function rprecursive {
 #ex:  rprecursive titi toto
@@ -110,9 +111,9 @@ function rprecursive {
 	if [ "$nb_param" -lt 2 ]; then
 		echo -e "\n\t$WARNING needs at least 2 strings arguments such as:\n\t\treplace titi toto"
 	elif [ "$nb_param" -eq 2 ]; then
-		replace -r "$@" .
+		rp -r "$@" .
 	elif [ "$nb_param" -eq 3 ]; then
-		replace -r "$@"
+		rp -r "$@"
 	else
 		echo -e "\n\t$WARNING at  most 3 arguments ..."
 	fi
@@ -126,12 +127,12 @@ function rpcaseinsensitive {
 	if [ "$nb_param" -lt 2 ]; then
 		echo -e "\n\t$WARNING needs at least 2 strings arguments such as:\n\t\treplace titi toto"
 	elif [ "$nb_param" -eq 2 ]; then
-		replace --case_insensitive -l "$@" .
+		rp --case_insensitive -l "$@" .
 	elif [ "$nb_param" -eq 3 ]; then
-		replace --case_insensitive -l "$@"
+		rp --case_insensitive -l "$@"
 	elif [ "$nb_param" -gt 3 ]; then
 		echo -e "$WARNING specific mode replace"
-		replace --case_insensitive -s "$@"
+		rp --case_insensitive -s "$@"
 	fi
 }
 
@@ -145,9 +146,9 @@ function rprecursivecaseinsensitive {
 		if [ "$nb_param" -lt 2 ]; then
 			echo -e "\n\t$WARNING needs at least 2 strings arguments such as:\n\t\treplace titi toto"
 		elif [ "$nb_param" -eq 2 ]; then
-			replace --case_insensitive -r "$@" .
+			rp --case_insensitive -r "$@" .
 		elif [ "$nb_param" -eq 3 ]; then
-			replace --case_insensitive -r "$@"
+			rp --case_insensitive -r "$@"
 		else
 			echo -e "\n\t$WARNING at  most 3 arguments ..."
 		fi
