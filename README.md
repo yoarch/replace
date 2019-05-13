@@ -5,7 +5,14 @@ The replacefs tool permits to perform massive and controlled string replacements
 
 # installation
 ```sh
+with pip:
 sudo pip3 install replacefs
+
+with yay:
+yay -a replace
+
+with yaourt:
+yaourt -a replace
 ```
 
 # compatibility
@@ -25,7 +32,7 @@ python >= 3
         [--add_excluded_strings <b>STRING_01 STRING_02 ...</b>]
         [--excluded_paths <b>EXCLUDED_PATH_01 EXCLUDED_PATH_01 ...</b>]
         [--binary_exclusion] [--binary_accepted]
-        [--symlink_exclusion] [--symlink_accepted]
+        [--symlink_exclusion] [--symlink_accepted] [--end_param]
 <b>options:</b>
 <!-- -->        <b>-h, --help</b>        show this help message and exit
 <!-- -->        <b>-l</b>        perform local replacement in <b>FOLDER_PATH</b>. Enabled by default
@@ -49,6 +56,7 @@ python >= 3
 <!-- -->        <b>--binary_accepted, --no_binary_exclusion, --binary</b>        accept binary files
 <!-- -->        <b>--symlink_accepted, --no_symlink_exclusion, --symlink</b>        refuse symlinks. Enabled by default
 <!-- -->        <b>--symlink_exclusion, --no_symlink</b>        accept symlinks
+<!-- -->        <b>-end_param, --end</b>        precise the end of a parameter enumeration
 </pre>
 
 

@@ -5,11 +5,11 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="replacefs",
-    version="1.0.15",
+    version="1.1.0",
     python_requires='>=3',
     author="yoarch",
     author_email="yo.managements@gmail.com",
-    description="Complete string replace tool on the all file system",
+    description="search and replace tool for strings on the all system",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/yoarch/replace",

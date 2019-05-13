@@ -10,34 +10,29 @@ import copy
 from os import stat
 from pwd import getpwuid
 
-import logging
-from .logger import build_logger
-# from logger import build_logger
-logger = build_logger("replace", level=logging.INFO)
-
 
 # important constants:
 ENCODING_INPUT_FILES = "utf8"
 
 # colors
-CRED = '\033[31m'
+CBRED = '\033[38;5;196;1m'
+CBORANGE = '\033[38;5;202;1m'
+CBGREEN = '\033[38;5;40;1m'
 CBYELLOW = '\033[1;33m'
 CBWHITE = '\033[1;37m'
 CBPURPLE = '\033[1;35m'
-BBLACK = '\033[1;30m'
-CLIGHTBLUE = '\033[94m'
 CBBLUE = '\033[1;34m'
-CNORMAL_WHITE = '\033[0m'
+CBASE = '\033[0m'
 
 COCCURRENCES = CBPURPLE
 CFILE_PATHS = CBBLUE
-CNORMAL_TEXT_IN_FILES = CBWHITE
+CTEXT_FILES = CBWHITE
 
 # indicator strings
 ASK_CONFIRMATION_INDICATORS_STRINGS = ["--ask_confirmation", "--ask"]
 CASE_SENSITIVE_INDICATORS_STRINGS = ["--case_sensitive", "--case_respect"]
-INITIAL_STRING_INDICATORS_STRINGS = ["--initial_string", "--initial", "--init"]
-DESTINATION_STRING_INDICATORS_STRINGS = ["--destination_string", "--destination", "--dest"]
+INITIAL_STRING_INDICATORS_STRINGS = ["--init_str", "--initial", "--init"]
+DESTINATION_STRING_INDICATORS_STRINGS = ["--dest_str", "--destination", "--dest"]
 DIRECTORY_PATH_TO_APPLY_INDICATORS_STRINGS = ["--directory_path", "--dirpath", "--path"]
 LIST_FILES_PATHS_TO_APPLY_INDICATORS_STRINGS = ["--file_paths_list", "--file_paths"]
 FILENAME_MUST_END_BY_INDICATORS_STRINGS = ["--filename_must_end_by", "--end_by"]
@@ -69,36 +64,31 @@ SUPPORTED_SHORT_INDICATORS = ['l', 'r', 's', 'a', 'c']
 
 
 def check_help_request(arguments):
-    if len(arguments) == 2 and (arguments[1] == "-h" or arguments[1] == "--help"):
+    if len(arguments) == 1 and (arguments[0] == "-h" or arguments[0] == "--help"):
         README_path = "/usr/lib/replace/README.md"
 
         f = open(README_path, 'r')
-        print("\n\t#######      replace documentation      #######\n")
+        print(CFILE_PATHS + "\n\t#######      replace documentation      #######\n" + CBWHITE)
 
         for line in f:
             if line == "```sh\n" or line == "```\n" or line == "<pre>\n" or line == "</pre>\n":
                 continue
-            line = line.replace('```sh', '')
-            line = line.replace('```', '')
-            line = line.replace('<pre>', '')
-            line = line.replace('</b>', '')
-            line = line.replace('<b>', '')
-            line = line.replace('<!-- -->', '')
-            line = line.replace('<br/>', '')
-            line = line.replace('```sh', '')
-            line = line.replace('***', '')
-            line = line.replace('**', '')
-            line = line.replace('*', '')
+
+            line = line.replace('```sh', '').replace('```', '').replace('<pre>', '').replace('</b>', '').\
+                replace('<b>', '').replace('<!-- -->', '').replace('<br/>', '').replace('```sh', '').\
+                replace('***', '').replace('***', '').replace('**', '').replace('*', '')
+
             print(" " + line, end='')
+        print(CBASE)
         exit()
 
 
-def check_nb_parameters(arguments):
-    if len(arguments) < 3:
-        logger.error("not enough arguments, needs at least the initial string and the destination string")
-        logger.error("needs the replace mode (-l -r or -s), "
+def check_nb_parameters(args):
+    if len(args) < 2:
+        ERROR("not enough arguments, needs at least the initial string and the destination string")
+        ERROR("needs the replace mode (-l -r or -s), "
                      "the initial string, the destination string and the path to perform it")
-        logger.error("a typical example would be: replace -l dog cat .")
+        ERROR("a typical example would be: replace -l dog cat .")
         raise ValueError("not enough arguments")
 
 
@@ -119,24 +109,25 @@ def initiate_indicators_values():
            binary_accepted, symlink_accepted, excluded_strings, excluded_extensions, excluded_paths
 
 
-def initiate_arguments_values():
-    initial_string = None
-    destination_string = None
-    directory_path_to_apply = None
-    list_files_paths_to_apply = []
-    return initial_string, destination_string, directory_path_to_apply, list_files_paths_to_apply
+def initiate_args_values():
+    init_str = None
+    dest_str = None
+    dir_path_to_apply = None
+    file_paths_to_apply = []
+    nb_occs_found = 0
+    nb_occs_replaced = 0
+    return init_str, dest_str, dir_path_to_apply, file_paths_to_apply, nb_occs_found, nb_occs_replaced
 
 
-def treat_input_parameters(input_parameters, filename_must_end_by, initial_string,
-                           destination_string, directory_path_to_apply, list_files_paths_to_apply,
+def treat_input_parms(input_parms, filename_must_end_by, init_str,
+                           dest_str, dir_path_to_apply, file_paths_to_apply,
                            local, recursive, specific, ask_replace, case_sensitive, black_list_extensions,
                            binary_accepted, symlink_accepted, excluded_strings, excluded_extensions, excluded_paths):
 
-    nb_args = len(input_parameters)
+    nb_args = len(input_parms)
     not_compatible_shorts_indicators = []
-    list_arguments_not_used_indexes = list(range(nb_args))
-    list_arguments_not_used_indexes.pop(0)
-    for arg_index, arg in enumerate(input_parameters[1:]):
+    args_not_used_indexes = list(range(nb_args))
+    for arg_index, arg in enumerate(input_parms):
         if arg.startswith("--"):
             if arg in FILENAME_MUST_END_BY_INDICATORS_STRINGS + INITIAL_STRING_INDICATORS_STRINGS + \
                     DESTINATION_STRING_INDICATORS_STRINGS + DIRECTORY_PATH_TO_APPLY_INDICATORS_STRINGS + \
@@ -174,19 +165,19 @@ def treat_input_parameters(input_parameters, filename_must_end_by, initial_strin
                 elif arg_index < nb_args - 1:
                     if arg in FILENAME_MUST_END_BY_INDICATORS_STRINGS:
                         for potential_end_filter_index, potential_end_filter in enumerate(
-                                input_parameters[arg_index + 2:]):
+                                input_parms[arg_index + 1:]):
                             if not potential_end_filter.startswith("-"):
                                 filename_must_end_by.append(potential_end_filter)
-                                list_arguments_not_used_indexes.remove(arg_index + 2 + potential_end_filter_index)
+                                args_not_used_indexes.remove(arg_index + 1 + potential_end_filter_index)
                             else:
                                 break
                     elif arg in EXCLUDED_PATHS_INDICATORS_STRINGS:
                         for potential_file_path_to_exclude_index, potential_file_path_to_exclude in enumerate(
-                                input_parameters[arg_index + 2:]):
+                                input_parms[arg_index + 1:]):
                             if not potential_file_path_to_exclude.startswith("-"):
                                 potential_file_path_to_exclude = get_full_path_joined(potential_file_path_to_exclude)
-                                list_arguments_not_used_indexes.remove(
-                                    arg_index + 2 + potential_file_path_to_exclude_index)
+                                args_not_used_indexes.remove(
+                                    arg_index + 1 + potential_file_path_to_exclude_index)
 
                                 if check_path_exists(potential_file_path_to_exclude):
                                     excluded_paths.append(potential_file_path_to_exclude)
@@ -195,61 +186,61 @@ def treat_input_parameters(input_parameters, filename_must_end_by, initial_strin
 
                     elif arg in ADD_EXCLUDED_EXTENSIONS_INDICATORS_STRINGS:
                         for potential_new_excluded_extension_index, potential_new_excluded_extension in enumerate(
-                                input_parameters[arg_index + 2:]):
+                                input_parms[arg_index + 1:]):
                             if not potential_new_excluded_extension.startswith("-"):
                                 excluded_extensions.append(potential_new_excluded_extension)
-                                list_arguments_not_used_indexes.remove(
-                                    arg_index + 2 + potential_new_excluded_extension_index)
+                                args_not_used_indexes.remove(
+                                    arg_index + 1 + potential_new_excluded_extension_index)
 
                             else:
                                 break
 
                     elif arg in ADD_EXCLUDED_STRINGS_INDICATORS_STRINGS:
                         for potential_new_excluded_string_index, potential_new_excluded_string in enumerate(
-                                input_parameters[arg_index + 2:]):
+                                input_parms[arg_index + 1:]):
                             if not potential_new_excluded_string.startswith("-"):
                                 excluded_strings.append(potential_new_excluded_string)
-                                list_arguments_not_used_indexes.remove(
-                                    arg_index + 2 + potential_new_excluded_string_index)
+                                args_not_used_indexes.remove(
+                                    arg_index + 1 + potential_new_excluded_string_index)
 
                             else:
                                 break
 
                     elif arg in INITIAL_STRING_INDICATORS_STRINGS:
-                        initial_string = input_parameters[arg_index + 2]
-                        list_arguments_not_used_indexes.remove(arg_index + 2)
+                        init_str = input_parms[arg_index + 1]
+                        args_not_used_indexes.remove(arg_index + 1)
                     elif arg in DESTINATION_STRING_INDICATORS_STRINGS:
-                        destination_string = input_parameters[arg_index + 2]
-                        list_arguments_not_used_indexes.remove(arg_index + 2)
+                        dest_str = input_parms[arg_index + 1]
+                        args_not_used_indexes.remove(arg_index + 1)
                     elif arg in DIRECTORY_PATH_TO_APPLY_INDICATORS_STRINGS:
-                        directory_path_to_apply = input_parameters[arg_index + 2]
-                        list_arguments_not_used_indexes.remove(arg_index + 2)
+                        dir_path_to_apply = input_parms[arg_index + 1]
+                        args_not_used_indexes.remove(arg_index + 1)
                     elif arg in LIST_FILES_PATHS_TO_APPLY_INDICATORS_STRINGS:
                         for potential_file_path_to_replace_index, potential_file_path_to_replace in enumerate(
-                                input_parameters[arg_index + 2:]):
+                                input_parms[arg_index + 1:]):
                             if not potential_file_path_to_replace.startswith("-"):
-                                list_files_paths_to_apply.append(potential_file_path_to_replace)
-                                list_arguments_not_used_indexes.remove(
-                                    arg_index + 2 + potential_file_path_to_replace_index)
+                                file_paths_to_apply.append(potential_file_path_to_replace)
+                                args_not_used_indexes.remove(
+                                    arg_index + 1 + potential_file_path_to_replace_index)
                             else:
                                 break
 
                 else:
-                    logger.error("no parameter after %s indicator" % arg)
+                    ERROR("no parameter after %s indicator" % arg)
                     raise ValueError("needs a parameter after the %s indicator" % arg)
 
-                list_arguments_not_used_indexes.remove(arg_index + 1)
+                args_not_used_indexes.remove(arg_index)
 
             else:
-                logger.error("the indicator %s is not supported" % arg)
+                ERROR("the indicator %s is not supported" % arg)
                 raise ValueError("please remove the %s parameter from the command" % arg)
         elif arg.startswith("-"):
             for short_indicator in arg[1:]:
                 if short_indicator not in SUPPORTED_SHORT_INDICATORS:
-                    logger.error("the short indicator -%s is not supported" % short_indicator)
+                    ERROR("the short indicator -%s is not supported" % short_indicator)
                     raise ValueError("please remove the -%s short indicator from the command" % short_indicator)
                 elif short_indicator in not_compatible_shorts_indicators:
-                    logger.error("the short indicator -%s is not compatible with "
+                    ERROR("the short indicator -%s is not compatible with "
                                  "these short indicators %s" % (short_indicator, not_compatible_shorts_indicators))
                     raise ValueError("please remove one of the incompatibles shorts indicators from the command")
                 elif short_indicator == 'l':
@@ -268,10 +259,10 @@ def treat_input_parameters(input_parameters, filename_must_end_by, initial_strin
                 elif short_indicator == 'c':
                     case_sensitive = True
 
-            list_arguments_not_used_indexes.remove(arg_index + 1)
-    return filename_must_end_by, initial_string, destination_string, directory_path_to_apply, list_files_paths_to_apply, \
+            args_not_used_indexes.remove(arg_index)
+    return filename_must_end_by, init_str, dest_str, dir_path_to_apply, file_paths_to_apply, \
            local, recursive, specific, ask_replace, case_sensitive, black_list_extensions, binary_accepted, \
-           symlink_accepted, excluded_strings, excluded_extensions, excluded_paths, list_arguments_not_used_indexes
+           symlink_accepted, excluded_strings, excluded_extensions, excluded_paths, args_not_used_indexes
 
 
 def check_only_one_replace_mode_picked(local, specific, recursive):
@@ -280,46 +271,46 @@ def check_only_one_replace_mode_picked(local, specific, recursive):
         if replace_mode:
             nb_of_true += 1
     if nb_of_true != 1:
-        logger.error("the replace mode can only be \"local\", \"recursive\" or \"specific\"")
+        ERROR("the replace mode can only be \"local\", \"recursive\" or \"specific\"")
         raise ValueError("please pick only one mode with the -l, -r or -s short options")
 
 
-def get_final_pmts_local_recursive(directory_path_to_apply, destination_string, initial_string, local, recursive,
-                                   input_params, list_arguments_not_used_indexes):
-    if directory_path_to_apply is None:
-        if not list_arguments_not_used_indexes:
-            logger.error("arguments are missing ... please review the command syntax.")
-            missing_arguments_local_recursive_error(local, recursive)
+def get_final_parms_local_recursive(dir_path_to_apply, dest_str, init_str, local, recursive,
+                                   input_parms, args_not_used_indexes):
+    if dir_path_to_apply is None:
+        if not args_not_used_indexes:
+            ERROR("arguments are missing ... please review the command syntax.")
+            missing_args_local_recursive_error(local, recursive)
 
-        directory_path_to_apply = input_params[list_arguments_not_used_indexes[-1]]
-        list_arguments_not_used_indexes.pop()
-    if destination_string is None:
-        if not list_arguments_not_used_indexes:
-            logger.error("arguments are missing ... please review the command syntax.")
-            missing_arguments_local_recursive_error(local, recursive)
+        dir_path_to_apply = input_parms[args_not_used_indexes[-1]]
+        args_not_used_indexes.pop()
+    if dest_str is None:
+        if not args_not_used_indexes:
+            ERROR("arguments are missing ... please review the command syntax.")
+            missing_args_local_recursive_error(local, recursive)
 
-        destination_string = input_params[list_arguments_not_used_indexes[-1]]
-        list_arguments_not_used_indexes.pop()
-    if initial_string is None:
-        if not list_arguments_not_used_indexes:
-            logger.error("arguments are missing ... please review the command syntax.")
-            missing_arguments_local_recursive_error(local, recursive)
+        dest_str = input_parms[args_not_used_indexes[-1]]
+        args_not_used_indexes.pop()
+    if init_str is None:
+        if not args_not_used_indexes:
+            ERROR("arguments are missing ... please review the command syntax.")
+            missing_args_local_recursive_error(local, recursive)
 
-        initial_string = input_params[list_arguments_not_used_indexes[-1]]
-        list_arguments_not_used_indexes.pop()
+        init_str = input_parms[args_not_used_indexes[-1]]
+        args_not_used_indexes.pop()
 
-    if directory_path_to_apply is None or destination_string is None or initial_string is None:
-        logger.error("arguments are missing ... please review the command syntax.")
-        missing_arguments_local_recursive_error(local, recursive)
+    if dir_path_to_apply is None or dest_str is None or init_str is None:
+        ERROR("arguments are missing ... please review the command syntax.")
+        missing_args_local_recursive_error(local, recursive)
 
-    if list_arguments_not_used_indexes:
-        logger.error("too much arguments entered ... please review the command syntax.")
-        missing_arguments_local_recursive_error(local, recursive)
+    if args_not_used_indexes:
+        ERROR("too much args entered ... please review the command syntax.")
+        missing_args_local_recursive_error(local, recursive)
 
-    return directory_path_to_apply, destination_string, initial_string
+    return dir_path_to_apply, dest_str, init_str
 
 
-def missing_arguments_local_recursive_error(local, recursive):
+def missing_args_local_recursive_error(local, recursive):
     if local:
         raise ValueError("for a \"local replace\" please precise the \"initial string\", the \"destination string\" "
                          "and the \"directory path\" to apply the local replacement\na correct command would be: "
@@ -330,40 +321,40 @@ def missing_arguments_local_recursive_error(local, recursive):
                          "correct command would be: replace -r titi toto /home/toto/documents/titi_folder")
 
 
-def get_final_pmts_specific(list_files_paths_to_apply, destination_string, initial_string,
-                            specific, input_params, list_arguments_not_used_indexes):
-    if initial_string is None:
-        if not list_arguments_not_used_indexes:
-            logger.error("arguments are missing ... please review the command syntax.")
-            missing_arguments_specific_error(specific)
+def get_final_parms_specific(file_paths_to_apply, dest_str, init_str,
+                            specific, input_parms, args_not_used_indexes):
+    if init_str is None:
+        if not args_not_used_indexes:
+            ERROR("arguments are missing ... please review the command syntax.")
+            missing_args_specific_error(specific)
 
-        initial_string = input_params[list_arguments_not_used_indexes[0]]
-        list_arguments_not_used_indexes.pop(0)
+        init_str = input_parms[args_not_used_indexes[0]]
+        args_not_used_indexes.pop(0)
 
-    if destination_string is None:
-        if not list_arguments_not_used_indexes:
-            logger.error("arguments are missing ... please review the command syntax.")
-            missing_arguments_specific_error(specific)
+    if dest_str is None:
+        if not args_not_used_indexes:
+            ERROR("arguments are missing ... please review the command syntax.")
+            missing_args_specific_error(specific)
 
-        destination_string = input_params[list_arguments_not_used_indexes[0]]
-        list_arguments_not_used_indexes.pop(0)
+        dest_str = input_parms[args_not_used_indexes[0]]
+        args_not_used_indexes.pop(0)
 
-    if not list_files_paths_to_apply:
-        if not list_arguments_not_used_indexes:
-            logger.error("arguments are missing ... please review the command syntax.")
-            missing_arguments_specific_error(specific)
-        for parameter_not_already_used_index in list_arguments_not_used_indexes:
-            list_files_paths_to_apply.append(input_params[parameter_not_already_used_index])
-        list_arguments_not_used_indexes = []
+    if not file_paths_to_apply:
+        if not args_not_used_indexes:
+            ERROR("arguments are missing ... please review the command syntax.")
+            missing_args_specific_error(specific)
+        for parameter_not_already_used_index in args_not_used_indexes:
+            file_paths_to_apply.append(input_parms[parameter_not_already_used_index])
+        args_not_used_indexes = []
 
-    if list_arguments_not_used_indexes:
-        logger.error("too much arguments entered ... please review the command syntax.")
-        missing_arguments_specific_error(specific)
+    if args_not_used_indexes:
+        ERROR("too much args entered ... please review the command syntax.")
+        missing_args_specific_error(specific)
 
-    return list_files_paths_to_apply, destination_string, initial_string
+    return file_paths_to_apply, dest_str, init_str
 
 
-def missing_arguments_specific_error(specific):
+def missing_args_specific_error(specific):
     if specific:
         raise ValueError("for a \"specific replace\" please precise the \"initial string\", "
                          "the \"destination string\" and the \"list files paths\" to apply "
@@ -372,33 +363,33 @@ def missing_arguments_specific_error(specific):
                          "documents/titi_folder/test01 documents/titi_folder/secret_titi_folder/test02")
 
 
-def check_initial_string_in_file(file_path, initial_string, case_sensitive):
+def check_init_str_in_file(file_path, init_str, case_sensitive):
 
     try:
         if case_sensitive:
             for line in open(file_path, 'r', encoding=ENCODING_INPUT_FILES):
-                if initial_string in line:
+                if init_str in line:
                     return True
             return False
         elif not case_sensitive:
             for line in open(file_path, 'r', encoding=ENCODING_INPUT_FILES):
-                if caseless_str1_in_str2(initial_string, line):
+                if caseless_str1_in_str2(init_str, line):
                     return True
             return False
 
     except PermissionError:
-        print("\tyou don't have the permission to access the file " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE)
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        WARNING("\tyou don't have the permission to access the file " + CFILE_PATHS + "%s" % file_path + CBASE)
+        skipped()
         return False
     except UnicodeDecodeError:
-        print("\tthe file " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE + " owns non unicode characters")
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        WARNING("\tthe file " + CFILE_PATHS + "%s" % file_path + CBASE + " owns non unicode characters")
+        skipped()
         return False
     except:
         raise ValueError("the file %s seems to cause problem to be opened" % file_path)
 
 
-def get_string_positions_in_lines(string, line, case_sensitive):
+def get_str_positions_in_lines(string, line, case_sensitive):
     start_string_indexes = []
     if case_sensitive:
         for index in range(len(line)):
@@ -411,52 +402,64 @@ def get_string_positions_in_lines(string, line, case_sensitive):
     return start_string_indexes
 
 
-def print_WARNING_in_red():
-    print(CRED + "\n\tWARNING:" + CNORMAL_WHITE, end='')
+def OK(msg=""):
+    print(CBGREEN + "\n\t[OK] " + CBASE + msg)
 
 
-def check_user_permissions(file_path):
+def INFO(msg=""):
+    print(CBWHITE + "\n\t[INFO] " + CBASE + msg)
+
+
+def WARNING(msg=""):
+    print(CBORANGE + "\n\t[WARNING] " + CBASE + msg)
+
+
+def ERROR(msg=""):
+    print(CBRED + "\n\t[ERROR] " + CBASE + msg)
+
+
+def skipped():
+    print(CBBLUE + "\n\t\t\tskipped\n\n" + CBASE)
+
+
+def check_user_rights(file_path):
     current_user = getpass.getuser()
     owner_file = getpwuid(stat(file_path).st_uid).pw_name
     if owner_file != current_user:
-        print_WARNING_in_red()
-        print(" the file " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE + " is owned by " + CFILE_PATHS +
-              "%s" % owner_file + CNORMAL_WHITE + ", might be necessary to manage its permissions\n")
+        WARNING("the file " + CFILE_PATHS + "%s" % file_path + CBASE + " is owned by " + CFILE_PATHS + "%s" % owner_file + CBASE + ", might be necessary to manage its permissions")
 
 
-def print_previous_lines(previous_lines, line_nb):
+def print_prev_lines(previous_lines, line_nb):
     if len(previous_lines) == 2:
-        print(CBYELLOW + "\t    %s: " % (line_nb - 2) + CNORMAL_TEXT_IN_FILES + "%s" % previous_lines[1], end='')
-        print(CBYELLOW + "\t    %s: " % (line_nb - 1) + CNORMAL_TEXT_IN_FILES + "%s" % previous_lines[0] + CNORMAL_WHITE, end='')
+        print(CBYELLOW + "\t    %s: " % (line_nb - 2) + CTEXT_FILES + "%s" % previous_lines[1], end='')
+        print(CBYELLOW + "\t    %s: " % (line_nb - 1) + CTEXT_FILES + "%s" % previous_lines[0] + CBASE, end='')
     elif len(previous_lines) == 1:
-        print(CBYELLOW + "\t    %s: " % (line_nb - 1) + CNORMAL_TEXT_IN_FILES + "%s" % previous_lines[0] + CNORMAL_WHITE, end='')
+        print(CBYELLOW + "\t    %s: " % (line_nb - 1) + CTEXT_FILES + "%s" % previous_lines[0] + CBASE, end='')
 
 
-def displaying_line_highlighting_initial_strings(line, line_nb, start_string_positions, initial_string, previous_lines):
+def display_line_highlighting_init_strs(line, line_nb, start_string_positions, init_str, previous_lines):
     if len(start_string_positions) > 1:
-        print("\n\tthere are several occurrences of " + COCCURRENCES + "\"%s\"" % initial_string +
-              CNORMAL_WHITE + " in this line:\n")
+        INFO("\n\tthere are several occurrences of " + COCCURRENCES + "\"%s\"" % init_str + CBASE + " in this line:\n")
 
-    print_previous_lines(previous_lines, line_nb)
+    print_prev_lines(previous_lines, line_nb)
 
-    print(COCCURRENCES + "\t    %s: " % line_nb + CNORMAL_TEXT_IN_FILES + "%s" % line[0:start_string_positions[0]],
-          end='')
+    print(COCCURRENCES + "\t    %s: " % line_nb + CTEXT_FILES + "%s" % line[0:start_string_positions[0]], end='')
     for string_list_index, string_index in enumerate(start_string_positions):
-        print(COCCURRENCES + "%s" % initial_string + CNORMAL_WHITE, end='')
+        print(COCCURRENCES + "%s" % init_str + CBASE, end='')
         if string_list_index == len(start_string_positions) - 1:
-            print(CNORMAL_TEXT_IN_FILES + "%s" % line[string_index + len(initial_string):] + CNORMAL_WHITE, end='')
+            print(CTEXT_FILES + "%s" % line[string_index + len(init_str):] + CBASE, end='')
         else:
-            print(CNORMAL_TEXT_IN_FILES + "%s" % line[string_index + len(initial_string):start_string_positions[
-                string_list_index + 1]] + CNORMAL_WHITE, end='')
+            print(CTEXT_FILES + "%s" % line[string_index + len(init_str):start_string_positions[
+                string_list_index + 1]] + CBASE, end='')
     return start_string_positions
 
 
-def displaying_line_highlighting_defined_initial_string(new_line, line, initial_string,
-                                                        defined_initial_string_start_position):
-    print(CNORMAL_TEXT_IN_FILES + "\t\t%s" % new_line, end='')
-    print(COCCURRENCES + "%s" % initial_string + CNORMAL_WHITE, end='')
-    print(CNORMAL_TEXT_IN_FILES + "%s" %
-          line[defined_initial_string_start_position + len(initial_string):] + CNORMAL_WHITE, end='')
+def display_line_highlighting_defined_init_str(new_line, line, init_str,
+                                               defined_init_str_start_position):
+    print(CTEXT_FILES + "\t\t%s" % new_line, end='')
+    print(COCCURRENCES + "%s" % init_str + CBASE, end='')
+    print(CTEXT_FILES + "%s" %
+          line[defined_init_str_start_position + len(init_str):] + CBASE, end='')
 
 
 def normalize_caseless(string):
@@ -477,30 +480,30 @@ def caseless_str1_in_str2(str1, str2):
 def abort_process(current_file, temporary_file_path):
     current_file.close()
     os.remove(temporary_file_path)
-    print(CBYELLOW + "\n\n\t\t\taborted ...\n\t\t\t\tSee you later\n" + CNORMAL_WHITE)
+    print(CBYELLOW + "\n\n\t\t\taborted ...\n\t\t\t\tSee you later\n" + CBASE)
     exit()
 
 
 def complete_new_line(new_line, line, start_string_index, nb_occurrences_in_line, start_string_position,
-                      start_string_positions, len_initial_string):
+                      start_string_positions, len_init_str):
     if start_string_index == nb_occurrences_in_line - 1:
-        new_line += line[start_string_position + len_initial_string:]
+        new_line += line[start_string_position + len_init_str:]
     else:
-        new_line += line[start_string_position + len_initial_string:start_string_positions[start_string_index + 1]]
+        new_line += line[start_string_position + len_init_str:start_string_positions[start_string_index + 1]]
     return new_line
 
 
 def build_new_line(new_line, line, start_string_index, nb_occurrences_in_line, start_string_position,
-                   start_string_positions, initial_string):
-    new_line += initial_string
+                   start_string_positions, init_str):
+    new_line += init_str
     new_line = complete_new_line(new_line, line, start_string_index, nb_occurrences_in_line,
                                  start_string_position,
-                                 start_string_positions, len(initial_string))
+                                 start_string_positions, len(init_str))
     return new_line
 
 
-def multi_replacement_on_same_line(line, start_string_positions, initial_string, destination_string,
-                                   nb_occurrences_replaced, current_file, temporary_file_path, skip_file):
+def multi_replacement_on_same_line(line, start_string_positions, init_str, dest_str,
+                                   nb_occs_replaced, current_file, temporary_file_path, skip_file):
     new_line = line[:start_string_positions[0]]
     nb_occurrences_in_line = len(start_string_positions)
 
@@ -508,53 +511,53 @@ def multi_replacement_on_same_line(line, start_string_positions, initial_string,
 
         if skip_file:
             new_line = build_new_line(new_line, line, start_string_index, nb_occurrences_in_line, start_string_position,
-                                      start_string_positions, initial_string)
+                                      start_string_positions, init_str)
         else:
-            print(CBYELLOW + "\n\toccurrence %s:" % (start_string_index+1) + CNORMAL_WHITE)
-            displaying_line_highlighting_defined_initial_string(new_line, line, initial_string, start_string_position)
+            print(CBYELLOW + "\n\toccurrence %s:" % (start_string_index+1) + CBASE)
+            display_line_highlighting_defined_init_str(new_line, line, init_str, start_string_position)
             replace_confirmation = input("\n\tperform replacement for this occurrence?\n\t\t[Enter] to "
                                          "proceed\t\t[fF] to skip the rest of the file\n\t\t[oO] to "
                                          "skip this occurrence\t[aA] to abort the replace process\n\t")
             if replace_confirmation == "":
 
-                print(CFILE_PATHS + "\t\t\tdone\n\n" + CNORMAL_WHITE)
-                new_line += destination_string
+                print(CFILE_PATHS + "\t\t\tdone\n\n" + CBASE)
+                new_line += dest_str
                 new_line = complete_new_line(new_line, line, start_string_index, nb_occurrences_in_line,
                                              start_string_position,
-                                             start_string_positions, len(initial_string))
+                                             start_string_positions, len(init_str))
 
-                nb_occurrences_replaced += 1
+                nb_occs_replaced += 1
             elif replace_confirmation in ["a", "A"]:
                 abort_process(current_file, temporary_file_path)
             else:
                 new_line = build_new_line(new_line, line, start_string_index, nb_occurrences_in_line,
-                                          start_string_position, start_string_positions, initial_string)
-                print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+                                          start_string_position, start_string_positions, init_str)
+                skipped()
 
             if replace_confirmation in ["f", "F"]:
                 skip_file = True
 
     current_file.write(new_line)
-    return nb_occurrences_replaced, skip_file
+    return nb_occs_replaced, skip_file
 
 
-def replace_one_occurrence_asked(replace_confirmation, current_file, temporary_file_path, initial_string,
-                                 destination_string, line, nb_occurrences_replaced, case_sensitive, skip_file):
+def replace_one_occurrence_asked(replace_confirmation, current_file, temporary_file_path, init_str,
+                                 dest_str, line, nb_occs_replaced, case_sensitive, skip_file):
     if replace_confirmation == "":
         if case_sensitive:
-            current_file.write(re.sub(initial_string, destination_string, line))
+            current_file.write(re.sub(init_str, dest_str, line))
         else:
-            current_file.write(re.sub(initial_string, destination_string, line, flags=re.I))
-        nb_occurrences_replaced += 1
-        print(CFILE_PATHS + "\t\t\tdone\n\n" + CNORMAL_WHITE)
+            current_file.write(re.sub(init_str, dest_str, line, flags=re.I))
+        nb_occs_replaced += 1
+        print(CFILE_PATHS + "\t\t\tdone\n\n" + CBASE)
     elif replace_confirmation in ["a", "A"]:
         abort_process(current_file, temporary_file_path)
     else:
         current_file.write(line)
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        skipped()
     if replace_confirmation in ["f", "F"]:
         skip_file = True
-    return nb_occurrences_replaced, skip_file
+    return nb_occs_replaced, skip_file
 
 
 def update_previous_lines(previous_lines, line):
@@ -567,11 +570,11 @@ def update_previous_lines(previous_lines, line):
         previous_lines[1] = copy.deepcopy(previous_lines[0])
         previous_lines[0] = copy.deepcopy(line)
     else:
-        logger.error("previous lines can not have more than 2 lines, check %s" % previous_lines)
+        ERROR("previous lines can not have more than 2 lines, check %s" % previous_lines)
         raise ValueError("check previous lines: %s" % previous_lines)
 
 
-def find_a_temporary_file_not_existing(file_path):
+def find_tmp_file_not_existing(file_path):
     for i in range(9):
         temporary_file_path = file_path + ".rp0" + str(i+1) + ".tmp"
         if not os.path.exists(temporary_file_path):
@@ -579,19 +582,18 @@ def find_a_temporary_file_not_existing(file_path):
     raise ValueError("all the available tmp extensions are used for the %s path" % file_path)
 
 
-def file_replace(file_path, temporary_file_path, initial_string, destination_string, nb_occurrences_found,
-                 nb_occurrences_replaced, ask_replace, case_sensitive, file_mask):
+def file_replace(file_path, temporary_file_path, init_str, dest_str, nb_occs_found,
+                 nb_occs_replaced, ask_replace, case_sensitive, file_mask):
 
     current_file = open(temporary_file_path, "w")
     if not os.path.isfile(file_path):
-        logger.error("the file %s doesn't exist" % file_path)
-        return nb_occurrences_replaced
+        ERROR("the file %s doesn't exist" % file_path)
+        return nb_occs_replaced
 
-    print("\nthere is " + COCCURRENCES + "\"%s\"" % initial_string + CNORMAL_WHITE +
-          " in the file " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE)
-    print("\treplacing " + COCCURRENCES + "\"%s\"" % initial_string + CNORMAL_WHITE +
-          " by " + COCCURRENCES + "\"%s\"" % destination_string + CNORMAL_WHITE +
-          " in " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE + " for the following lines:")
+    print("\nthere is " + COCCURRENCES + "\"%s\"" % init_str + CBASE + " in the file " + CFILE_PATHS + "%s" % file_path + CBASE)
+    print("\treplacing " + COCCURRENCES + "\"%s\"" % init_str + CBASE +
+          " by " + COCCURRENCES + "\"%s\"" % dest_str + CBASE +
+          " in " + CFILE_PATHS + "%s" % file_path + CBASE + " for the following lines:")
 
     previous_lines = []
     skip_file = False
@@ -599,52 +601,52 @@ def file_replace(file_path, temporary_file_path, initial_string, destination_str
     for line_index, line in enumerate(open(file_path, encoding=ENCODING_INPUT_FILES)):
         line_nb = line_index + 1
         if case_sensitive:
-            if initial_string in line and not skip_file:
-                start_string_positions = get_string_positions_in_lines(initial_string, line, case_sensitive)
-                displaying_line_highlighting_initial_strings(line, line_nb, start_string_positions, initial_string,
-                                                             previous_lines)
-                nb_occurrences_found += len(start_string_positions)
+            if init_str in line and not skip_file:
+                start_string_positions = get_str_positions_in_lines(init_str, line, case_sensitive)
+                display_line_highlighting_init_strs(line, line_nb, start_string_positions, init_str,
+                                                    previous_lines)
+                nb_occs_found += len(start_string_positions)
                 if not ask_replace:
-                    nb_occurrences_replaced += len(start_string_positions)
-                    current_file.write(re.sub(initial_string, destination_string, line))
+                    nb_occs_replaced += len(start_string_positions)
+                    current_file.write(re.sub(init_str, dest_str, line))
                 elif ask_replace:
                     if len(start_string_positions) == 1:
                         replace_confirmation = input("\n\tperform replacement?\n\t\t[Enter] to proceed\t\t[fF] to "
                                                      "skip the rest of the file\n\t\t[oO] to skip "
                                                      "this occurrence\t[aA] to abort the replace process\n\t")
 
-                        nb_occurrences_replaced, skip_file = replace_one_occurrence_asked(replace_confirmation,
+                        nb_occs_replaced, skip_file = replace_one_occurrence_asked(replace_confirmation,
                                                                                           current_file,
                                                                                           temporary_file_path,
-                                                                                          initial_string,
-                                                                                          destination_string, line,
-                                                                                          nb_occurrences_replaced,
+                                                                                          init_str,
+                                                                                          dest_str, line,
+                                                                                          nb_occs_replaced,
                                                                                           case_sensitive, skip_file)
                     else:
-                        nb_occurrences_replaced, skip_file = multi_replacement_on_same_line(line,
+                        nb_occs_replaced, skip_file = multi_replacement_on_same_line(line,
                                                                                             start_string_positions,
-                                                                                            initial_string,
-                                                                                            destination_string,
-                                                                                            nb_occurrences_replaced,
+                                                                                            init_str,
+                                                                                            dest_str,
+                                                                                            nb_occs_replaced,
                                                                                             current_file,
                                                                                             temporary_file_path,
                                                                                             skip_file)
 
                 else:
-                    logger.error("the ask_replace parameter can only be \"True\" or \"False\"")
+                    ERROR("the ask_replace parameter can only be \"True\" or \"False\"")
                     raise ValueError("the ask_replace parameter can not be %s" % ask_replace)
             else:
                 current_file.write(line)
 
         elif not case_sensitive:
-            if caseless_str1_in_str2(initial_string, line) and not skip_file:
-                start_string_positions = get_string_positions_in_lines(initial_string, line, case_sensitive)
-                displaying_line_highlighting_initial_strings(line, line_nb, start_string_positions,
-                                                             initial_string, previous_lines)
-                nb_occurrences_found += len(start_string_positions)
+            if caseless_str1_in_str2(init_str, line) and not skip_file:
+                start_string_positions = get_str_positions_in_lines(init_str, line, case_sensitive)
+                display_line_highlighting_init_strs(line, line_nb, start_string_positions,
+                                                    init_str, previous_lines)
+                nb_occs_found += len(start_string_positions)
                 if not ask_replace:
-                    nb_occurrences_replaced += len(start_string_positions)
-                    current_file.write(re.sub(initial_string, destination_string, line, flags=re.I))
+                    nb_occs_replaced += len(start_string_positions)
+                    current_file.write(re.sub(init_str, dest_str, line, flags=re.I))
                 elif ask_replace:
 
                     if len(start_string_positions) == 1:
@@ -652,31 +654,31 @@ def file_replace(file_path, temporary_file_path, initial_string, destination_str
                                                      "skip the rest of the file\n\t\t[oO] to skip "
                                                      "this occurrence\t[aA] to abort the replace process\n\t")
 
-                        nb_occurrences_replaced, skip_file = replace_one_occurrence_asked(replace_confirmation,
+                        nb_occs_replaced, skip_file = replace_one_occurrence_asked(replace_confirmation,
                                                                                           current_file,
                                                                                           temporary_file_path,
-                                                                                          initial_string,
-                                                                                          destination_string, line,
-                                                                                          nb_occurrences_replaced,
+                                                                                          init_str,
+                                                                                          dest_str, line,
+                                                                                          nb_occs_replaced,
                                                                                           case_sensitive, skip_file)
 
                     else:
-                        nb_occurrences_replaced, skip_file = multi_replacement_on_same_line(line,
+                        nb_occs_replaced, skip_file = multi_replacement_on_same_line(line,
                                                                                             start_string_positions,
-                                                                                            initial_string,
-                                                                                            destination_string,
-                                                                                            nb_occurrences_replaced,
+                                                                                            init_str,
+                                                                                            dest_str,
+                                                                                            nb_occs_replaced,
                                                                                             current_file,
                                                                                             temporary_file_path,
                                                                                             skip_file)
                 else:
-                    logger.error("the ask_replace parameter can only be \"True\" or \"False\"")
+                    ERROR("the ask_replace parameter can only be \"True\" or \"False\"")
                     raise ValueError("the ask_replace parameter can not be %s" % ask_replace)
             else:
                 current_file.write(line)
 
         else:
-            logger.error("the case_sensitive parameter can only be \"True\" or \"False\"")
+            ERROR("the case_sensitive parameter can only be \"True\" or \"False\"")
             raise ValueError("the case_sensitive parameter can not be %s" % case_sensitive)
 
         update_previous_lines(previous_lines, line)
@@ -686,17 +688,16 @@ def file_replace(file_path, temporary_file_path, initial_string, destination_str
     os.rename(temporary_file_path, file_path)
     os.chmod(file_path, int(file_mask, 8))
 
-    return nb_occurrences_found, nb_occurrences_replaced
+    return nb_occs_found, nb_occs_replaced
 
 
 def check_file_extension_in_blacklist(file_path):
     for black_list_extension in BLACK_LIST_EXTENSIONS_LIST:
         if file_path.endswith(black_list_extension):
-            print_WARNING_in_red()
-            print("the file %s owns the extension %s that is not accepted by default" % (file_path, black_list_extension))
-            print("\tuse one of these parameters %s if you want to perform replacement "
-                  "in this kind of file anyway" % NO_BLACK_LIST_EXTENSIONS_INDICATORS_STRINGS)
-            print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+            WARNING("the file %s owns the extension %s that is not accepted by default\n\t"
+                    "use one of these parameters %s if you want to perform replacement in this kind of file "
+                    "anyway" % (file_path, black_list_extension, NO_BLACK_LIST_EXTENSIONS_INDICATORS_STRINGS))
+            skipped()
             return True
     return False
 
@@ -705,18 +706,16 @@ def check_filename_must_end_by(filename_must_end_by, file_path):
     for acceptable_filename_end in filename_must_end_by:
         if file_path.endswith(acceptable_filename_end):
             return True
-    print_WARNING_in_red()
-    print("the file %s doesn't end by the acceptable end extensions you entered: %s" % (file_path, filename_must_end_by))
-    print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+    WARNING("the file %s doesn't end by the acceptable end extensions you entered: %s" % (file_path, filename_must_end_by))
+    skipped()
     return False
 
 
 def check_file_owns_excluded_path(excluded_paths, file_path):
     for excluded_path in excluded_paths:
         if file_path.startswith(excluded_path):
-            print_WARNING_in_red()
-            print("the file %s is excluded regarding the excluded path %s you entered" % (file_path, excluded_path))
-            print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+            WARNING("the file %s is excluded regarding the excluded path %s you entered" % (file_path, excluded_path))
+            skipped()
             return True
     return False
 
@@ -724,9 +723,8 @@ def check_file_owns_excluded_path(excluded_paths, file_path):
 def check_file_owns_excluded_extension(excluded_extensions, file_path):
     for excluded_extension in excluded_extensions:
         if file_path.endswith(excluded_extension):
-            print_WARNING_in_red()
-            print("the file %s is excluded regarding the excluded extension %s you entered" % (file_path, excluded_extension))
-            print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+            WARNING("the file %s is excluded regarding the excluded extension %s you entered" % (file_path, excluded_extension))
+            skipped()
             return True
     return False
 
@@ -734,9 +732,8 @@ def check_file_owns_excluded_extension(excluded_extensions, file_path):
 def check_file_owns_excluded_string(excluded_strings, file_path):
     for excluded_string in excluded_strings:
         if excluded_string in file_path:
-            print_WARNING_in_red()
-            print("the file %s is excluded regarding the excluded string %s you entered" % (file_path, excluded_string))
-            print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+            WARNING("the file %s is excluded regarding the excluded string %s you entered" % (file_path, excluded_string))
+            skipped()
             return True
     return False
 
@@ -748,20 +745,20 @@ def check_able_open_file(file_path):
         open_test.close()
         return True
     except FileNotFoundError:
-        print("\tthe file " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE + " doesn't exist")
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        ERROR("the file " + CFILE_PATHS + "%s" % file_path + CBASE + " doesn't exist")
+        skipped()
         return False
     except PermissionError:
-        print("\tyou don't have the permission to access the file " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE)
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        ERROR("you don't have the permission to access the file " + CFILE_PATHS + "%s" % file_path + CBASE)
+        skipped()
         return False
     except IsADirectoryError:
-        print("\t the path " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE + "is a directory, not a file")
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        ERROR("the path " + CFILE_PATHS + "%s" % file_path + CBASE + "is a directory, not a file")
+        skipped()
         return False
     except OSError:
-        print("\t no such device or address " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE)
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        ERROR("no such device or address " + CFILE_PATHS + "%s" % file_path + CBASE)
+        skipped()
         return False
 
 
@@ -774,16 +771,16 @@ def check_able_create_temporary(temporary_file_path, file_mask):
         os.remove(temporary_file_path)
         return True
     except FileNotFoundError:
-        print("\tthe file " + CFILE_PATHS + "%s" % temporary_file_path + CNORMAL_WHITE + " doesn't exist")
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        ERROR("the file " + CFILE_PATHS + "%s" % temporary_file_path + CBASE + " doesn't exist")
+        skipped()
         return False
     except PermissionError:
-        print("\tyou don't have the permission to create the file " + CFILE_PATHS + "%s" % temporary_file_path + CNORMAL_WHITE)
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        ERROR("you don't have the permission to create the file " + CFILE_PATHS + "%s" % temporary_file_path + CBASE)
+        skipped()
         return False
     except IsADirectoryError:
-        print("\t the path " + CFILE_PATHS + "%s" % temporary_file_path + CNORMAL_WHITE + "is a directory, not a file")
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        ERROR(" the path " + CFILE_PATHS + "%s" % temporary_file_path + CBASE + "is a directory, not a file")
+        skipped()
         return False
 
 
@@ -792,22 +789,20 @@ def check_binary_file(file_path):
     is_binary_string = lambda bytes: bool(bytes.translate(None, textchars))
     try:
         if is_binary_string(open(file_path, 'rb').read(1024)):
-            print_WARNING_in_red()
-            print("the file %s is a binary file" % file_path)
-            print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+            WARNING("the file %s is a binary file" % file_path)
+            skipped()
             return True
         return False
     except PermissionError:
-        print("\tyou don't have the permission to access the file " + CFILE_PATHS + "%s" % file_path + CNORMAL_WHITE)
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        ERROR("you don't have the permission to access the file " + CFILE_PATHS + "%s" % file_path + CBASE)
+        skipped()
         return True
 
 
 def check_symlink_path(file_path):
     if os.path.islink(file_path):
-        print_WARNING_in_red()
-        print("the file %s is a symlink file" % file_path)
-        print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+        WARNING("the file %s is a symlink file" % file_path)
+        skipped()
         return True
     return False
 
@@ -815,19 +810,18 @@ def check_symlink_path(file_path):
 def get_temporary_file_path(file_path, excluded_paths):
     temporary_file_path = file_path + ".tmp"
     if os.path.exists(temporary_file_path):
-        temporary_file_path = find_a_temporary_file_not_existing(file_path)
+        temporary_file_path = find_tmp_file_not_existing(file_path)
     excluded_paths.append(temporary_file_path)
     return temporary_file_path
 
 
 def get_file_permission_mask(file_path):
-    # return oct(os.stat(file_path).st_mode & 0o777)[-3:]
     return oct(os.stat(file_path).st_mode & 0o777)
 
 
-def replace_local_recursive(directory_path, initial_string, destination_string, black_list_extensions,
+def replace_local_recursive(directory_path, init_str, dest_str, black_list_extensions,
                             filename_must_end_by, excluded_paths, excluded_strings, excluded_extensions, local,
-                            nb_occurrences_found, nb_occurrences_replaced, ask_replace, case_sensitive, binary_accepted,
+                            nb_occs_found, nb_occs_replaced, ask_replace, case_sensitive, binary_accepted,
                             symlink_accepted):
     for directory_path, directory_names, filenames in os.walk(directory_path):
         for filename in filenames:
@@ -844,11 +838,10 @@ def replace_local_recursive(directory_path, initial_string, destination_string, 
                 continue
 
             if not check_path_exists(file_path):
-                print("\t\tthe file path %s seems to cause problem, might be a broken simlink" % file_path)
-                print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+                WARNING("the file path " + CFILE_PATHS + "%s" % file_path + CBASE + " seems to cause problem, might be a broken simlink")
                 continue
 
-            check_user_permissions(file_path)
+            check_user_rights(file_path)
             if not check_able_open_file(file_path):
                 continue
 
@@ -874,43 +867,41 @@ def replace_local_recursive(directory_path, initial_string, destination_string, 
             if not check_able_create_temporary(temporary_file_path, file_mask):
                 continue
 
-            if check_initial_string_in_file(file_path, initial_string, case_sensitive):
-                nb_occurrences_found, nb_occurrences_replaced = file_replace(file_path, temporary_file_path,
-                                                                             initial_string, destination_string,
-                                                                             nb_occurrences_found,
-                                                                             nb_occurrences_replaced,
+            if check_init_str_in_file(file_path, init_str, case_sensitive):
+                nb_occs_found, nb_occs_replaced = file_replace(file_path, temporary_file_path,
+                                                                             init_str, dest_str,
+                                                                             nb_occs_found,
+                                                                             nb_occs_replaced,
                                                                              ask_replace, case_sensitive, file_mask)
         if local:
             break
-    return nb_occurrences_found, nb_occurrences_replaced
+    return nb_occs_found, nb_occs_replaced
 
 
-def check_path_folder_exists(folder_path):
-    if not os.path.isdir(folder_path):
-        print_WARNING_in_red()
-        print("the %s folder path doesn't exist" % folder_path)
-        raise ValueError("the directory path to apply %s doesn't exist, you may review it" % folder_path)
+def check_folder_path_exists(folderpath):
+    if not os.path.isdir(folderpath):
+        WARNING(CFILE_PATHS + " %s " % folderpath + CBASE + "folder doesn't exist")
+        raise ValueError("the directory path to apply %s doesn't exist, you may review it" % folderpath)
 
 
-def check_path_exists(file_path):
-    if not os.path.exists(file_path):
-        print_WARNING_in_red()
-        print("the %s path doesn't exist" % file_path)
+def check_path_exists(path):
+    if not os.path.exists(path):
+        WARNING(CFILE_PATHS + " %s " % path + CBASE + "path doesn't exist")
         return False
     return True
 
 
-def replace_specific(list_files_paths_to_apply, initial_string, destination_string,
-                     nb_occurrences_found, nb_occurrences_replaced, black_list_extensions, ask_replace, case_sensitive,
+def replace_specific(file_paths_to_apply, init_str, dest_str,
+                     nb_occs_found, nb_occs_replaced, black_list_extensions, ask_replace, case_sensitive,
                      binary_accepted, symlink_accepted):
-    for file_path in list_files_paths_to_apply:
+    for file_path in file_paths_to_apply:
 
         if not check_path_exists(file_path):
-            print("\t\tthe file path %s seems to cause problem, might be a broken simlink" % file_path)
-            print(CFILE_PATHS + "\n\t\t\tskipped\n\n" + CNORMAL_WHITE)
+            WARNING("the file path %s seems to cause problem, might be a broken simlink" % file_path)
+            skipped()
             continue
 
-        check_user_permissions(file_path)
+        check_user_rights(file_path)
         if not check_able_open_file(file_path):
             continue
 
@@ -931,100 +922,99 @@ def replace_specific(list_files_paths_to_apply, initial_string, destination_stri
         if not check_able_create_temporary(temporary_file_path, file_mask):
             continue
 
-        if check_initial_string_in_file(file_path, initial_string, case_sensitive):
-            nb_occurrences_found, nb_occurrences_replaced = file_replace(file_path, temporary_file_path, initial_string,
-                                                   destination_string, nb_occurrences_found,
-                                                   nb_occurrences_replaced, ask_replace, case_sensitive, file_mask)
-    return nb_occurrences_found, nb_occurrences_replaced
+        if check_init_str_in_file(file_path, init_str, case_sensitive):
+            nb_occs_found, nb_occs_replaced = file_replace(file_path, temporary_file_path, init_str,
+                                                   dest_str, nb_occs_found,
+                                                   nb_occs_replaced, ask_replace, case_sensitive, file_mask)
+    return nb_occs_found, nb_occs_replaced
 
 
-def display_occurrences_found_message(nb_occurrences_found, nb_occurrences_replaced, initial_string):
-    if nb_occurrences_found == 0:
-        print(CFILE_PATHS + "\n\t%s" % nb_occurrences_found + CNORMAL_WHITE + " occurrence of " + COCCURRENCES +
-              "%s" % initial_string + CNORMAL_WHITE + " found")
+def occs_summary(nb_occs_found, nb_occs_replaced, init_str):
+    if nb_occs_found == 0:
+        print(CFILE_PATHS + "\n\t0" + CBASE + " occurrence of " + COCCURRENCES + "%s" % init_str + CBASE + " found")
+    elif nb_occs_found == 1:
+        print(CFILE_PATHS + "\n\t1" + CBASE + " occurrence of " + COCCURRENCES + "%s" % init_str +
+              CBASE + " found and " + CFILE_PATHS + "%s" % nb_occs_replaced + CBASE + " replaced")
     else:
-        print(CFILE_PATHS + "\n\t%s" % nb_occurrences_found + CNORMAL_WHITE + " occurrences of " + COCCURRENCES +
-              "%s" % initial_string + CNORMAL_WHITE + " found and " + CFILE_PATHS + "%s" % nb_occurrences_replaced +
-              CNORMAL_WHITE + " replaced")
+        print(CFILE_PATHS + "\n\t%s" % nb_occs_found + CBASE + " occurrences of " + COCCURRENCES +
+              "%s" % init_str + CBASE + " found and " + CFILE_PATHS + "%s" % nb_occs_replaced +
+              CBASE + " replaced")
 
 
-def get_full_paths(directory_path_to_apply, list_files_paths_to_apply):
-    if list_files_paths_to_apply:
+def get_full_paths(dir_path_to_apply, file_paths_to_apply):
+    if file_paths_to_apply:
         filepaths_list = []
 
-        for filename in list_files_paths_to_apply:
+        for filename in file_paths_to_apply:
             filepaths_list.append(get_full_path_joined(filename))
 
-        list_files_paths_to_apply = filepaths_list
+        file_paths_to_apply = filepaths_list
 
-    if directory_path_to_apply is not None:
-        directory_path_to_apply = get_full_path_joined(directory_path_to_apply)
+    if dir_path_to_apply is not None:
+        dir_path_to_apply = get_full_path_joined(dir_path_to_apply)
 
-    return directory_path_to_apply, list_files_paths_to_apply
+    return dir_path_to_apply, file_paths_to_apply
 
 
 def get_full_path_joined(given_path):
     return os.path.normpath((os.path.join(os.getcwd(), os.path.expanduser(given_path))))
 
 
-def check_integrity_of_mode_request(local, recursive, specific, directory_path_to_apply, list_files_paths_to_apply):
+def check_integrity_of_mode_request(local, recursive, specific, dir_path_to_apply, file_paths_to_apply):
     if local or recursive:
-        if list_files_paths_to_apply:
-            print_WARNING_in_red()
-            print("the replace mode is not specific, list_files_paths_to_apply "
-                  "should be empty and is: %s" % list_files_paths_to_apply)
-            raise ValueError("list_files_paths_to_apply should be empty")
-        if directory_path_to_apply is None:
-            print_WARNING_in_red()
-            print("the replace mode is not specific, directory_path_to_apply should not be None")
-            raise ValueError("directory_path_to_apply should be defined")
-        if not check_path_exists(directory_path_to_apply):
-            raise ValueError("the directory path %s doesn't exist" % directory_path_to_apply)
-        if not os.path.isdir(directory_path_to_apply):
-            print("\n\t%s is a file, proceeding specific replace mode\n" % directory_path_to_apply)
+        if file_paths_to_apply:
+            WARNING("the replace mode is not specific, file_paths_to_apply should be empty and is: %s" % file_paths_to_apply)
+            raise ValueError("file_paths_to_apply should be empty")
+        if dir_path_to_apply is None:
+            WARNING("the replace mode is not specific, dir_path_to_apply should not be None")
+            raise ValueError("dir_path_to_apply should be defined")
+        if not check_path_exists(dir_path_to_apply):
+            raise ValueError("the directory path %s doesn't exist" % dir_path_to_apply)
+        if not os.path.isdir(dir_path_to_apply):
+            INFO(CFILE_PATHS + "%s" + CBASE + " is a file, proceeding specific replace mode" % dir_path_to_apply)
             local = False
             recursive = False
             specific = True
-            list_files_paths_to_apply.append(directory_path_to_apply)
+            file_paths_to_apply.append(dir_path_to_apply)
 
     elif specific:
-        if not list_files_paths_to_apply:
-            print_WARNING_in_red()
-            print("the replace mode is specific, list_files_paths_to_apply should not be empty and is: %s")
-            raise ValueError("list_files_paths_to_apply should not be empty in specific mode replacement")
-        if directory_path_to_apply is not None:
-            print_WARNING_in_red()
-            print("the replace mode is specific, directory_path_to_apply should be None")
-            raise ValueError("directory_path_to_apply should not be defined")
+        if not file_paths_to_apply:
+            ERROR("the replace mode is specific, file_paths_to_apply should not be empty and is: %s" % file_paths_to_apply)
+            raise ValueError("file_paths_to_apply should not be empty in specific mode replacement")
+        if dir_path_to_apply is not None:
+            ERROR("the replace mode is specific, dir_path_to_apply should be None")
+            raise ValueError("dir_path_to_apply should not be defined")
 
         file_paths = []
-        for filepath in list_files_paths_to_apply:
+        for filepath in file_paths_to_apply:
             if not check_path_exists(filepath):
-                print("removing %s from the file list" % filepath)
+                WARNING(CFILE_PATHS + "%s" + CBASE + " doesn't exist, removing it from the file list" % filepath)
             elif os.path.isdir(filepath):
-                print("%s is a folder, removing it from the file list" % filepath)
+                WARNING(CFILE_PATHS + "%s" + CBASE + " is a folder, removing it from the file list" % filepath)
             else:
                 file_paths.append(filepath)
 
-        list_files_paths_to_apply = file_paths
-
-    return local, recursive, specific, directory_path_to_apply, list_files_paths_to_apply
+        file_paths_to_apply = file_paths
+    return local, recursive, specific, dir_path_to_apply, file_paths_to_apply
 
 
 def main():
-    check_help_request(sys.argv)
-    check_nb_parameters(sys.argv)
+
+    input_parms = sys.argv[1:]
+    check_help_request(input_parms)
+    check_nb_parameters(input_parms)
     filename_must_end_by, local, recursive, specific, ask_replace, case_sensitive, \
         black_list_extensions, binary_accepted, symlink_accepted, excluded_strings, \
         excluded_extensions, excluded_paths = initiate_indicators_values()
 
-    initial_string, destination_string, directory_path_to_apply, list_files_paths_to_apply = initiate_arguments_values()
+    init_str, dest_str, dir_path_to_apply, file_paths_to_apply, \
+        nb_occs_found, nb_occs_replaced = initiate_args_values()
 
-    filename_must_end_by, initial_string, destination_string, directory_path_to_apply, list_files_paths_to_apply, \
+    filename_must_end_by, init_str, dest_str, dir_path_to_apply, file_paths_to_apply, \
         local, recursive, specific, ask_replace, case_sensitive, black_list_extensions, binary_accepted, \
-        symlink_accepted, excluded_strings, excluded_extensions, excluded_paths, list_arguments_not_used_indexes = \
-        treat_input_parameters(sys.argv, filename_must_end_by, initial_string, destination_string,
-                               directory_path_to_apply, list_files_paths_to_apply, local, recursive, specific,
+        symlink_accepted, excluded_strings, excluded_extensions, excluded_paths, args_not_used_indexes = \
+        treat_input_parms(input_parms, filename_must_end_by, init_str, dest_str,
+                               dir_path_to_apply, file_paths_to_apply, local, recursive, specific,
                                ask_replace, case_sensitive, black_list_extensions, binary_accepted, symlink_accepted,
                                excluded_strings, excluded_extensions, excluded_paths)
 
@@ -1032,53 +1022,50 @@ def main():
 
     # finalize getting all the parameters
     if local or recursive:
-        directory_path_to_apply, destination_string, initial_string = \
-            get_final_pmts_local_recursive(directory_path_to_apply, destination_string,
-                                                              initial_string, local, recursive, sys.argv,
-                                                              list_arguments_not_used_indexes)
+        dir_path_to_apply, dest_str, init_str = \
+            get_final_parms_local_recursive(dir_path_to_apply, dest_str,
+                                                              init_str, local, recursive, input_parms,
+                                                              args_not_used_indexes)
 
     elif specific:
-        list_files_paths_to_apply, destination_string, initial_string = \
-            get_final_pmts_specific(list_files_paths_to_apply, destination_string,
-                                                       initial_string, specific, sys.argv,
-                                                       list_arguments_not_used_indexes)
+        file_paths_to_apply, dest_str, init_str = \
+            get_final_parms_specific(file_paths_to_apply, dest_str,
+                                                       init_str, specific, input_parms,
+                                                       args_not_used_indexes)
     else:
-        logger.error("the replace mode can only be \"local\", \"recursive\" or \"specific\"")
+        ERROR("the replace mode can only be \"local\", \"recursive\" or \"specific\"")
         raise ValueError("please pick only one mode with the -l, -r or -s short options")
 
-    directory_path_to_apply, list_files_paths_to_apply = get_full_paths(directory_path_to_apply,
-                                                                        list_files_paths_to_apply)
-    local, recursive, specific, directory_path_to_apply, list_files_paths_to_apply = check_integrity_of_mode_request(
-        local, recursive, specific, directory_path_to_apply, list_files_paths_to_apply)
-
-    nb_occurrences_found = 0
-    nb_occurrences_replaced = 0
+    dir_path_to_apply, file_paths_to_apply = get_full_paths(dir_path_to_apply, file_paths_to_apply)
+    local, recursive, specific, dir_path_to_apply, file_paths_to_apply = check_integrity_of_mode_request(
+        local, recursive, specific, dir_path_to_apply, file_paths_to_apply)
 
     # apply the replace
     if local:
-        nb_occurrences_found, nb_occurrences_replaced = \
-            replace_local_recursive(directory_path_to_apply, initial_string, destination_string, black_list_extensions,
+        nb_occs_found, nb_occs_replaced = \
+            replace_local_recursive(dir_path_to_apply, init_str, dest_str, black_list_extensions,
                                     filename_must_end_by, excluded_paths, excluded_strings, excluded_extensions, local,
-                                    nb_occurrences_found, nb_occurrences_replaced, ask_replace, case_sensitive,
+                                    nb_occs_found, nb_occs_replaced, ask_replace, case_sensitive,
                                     binary_accepted, symlink_accepted)
 
     elif recursive:
-        nb_occurrences_found, nb_occurrences_replaced = \
-            replace_local_recursive(directory_path_to_apply, initial_string, destination_string, black_list_extensions,
+        nb_occs_found, nb_occs_replaced = \
+            replace_local_recursive(dir_path_to_apply, init_str, dest_str, black_list_extensions,
                                     filename_must_end_by, excluded_paths, excluded_strings, excluded_extensions, local,
-                                    nb_occurrences_found, nb_occurrences_replaced, ask_replace, case_sensitive,
+                                    nb_occs_found, nb_occs_replaced, ask_replace, case_sensitive,
                                     binary_accepted, symlink_accepted)
 
     elif specific:
-        nb_occurrences_found, nb_occurrences_replaced = \
-            replace_specific(list_files_paths_to_apply, initial_string, destination_string,
-                             nb_occurrences_found, nb_occurrences_replaced, black_list_extensions, ask_replace,
+        nb_occs_found, nb_occs_replaced = \
+            replace_specific(file_paths_to_apply, init_str, dest_str,
+                             nb_occs_found, nb_occs_replaced, black_list_extensions, ask_replace,
                              case_sensitive, binary_accepted, symlink_accepted)
     else:
-        logger.error("the replace mode can only be \"local\", \"recursive\" or \"specific\"")
+        ERROR("the replace mode can only be \"local\", \"recursive\" or \"specific\"")
         raise ValueError("please pick only one mode with the -l, -r or -s short options")
 
-    display_occurrences_found_message(nb_occurrences_found, nb_occurrences_replaced, initial_string)
+    occs_summary(nb_occs_found, nb_occs_replaced, init_str)
+
 
 if __name__ == "__main__":
     main()
