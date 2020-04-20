@@ -3,22 +3,22 @@ Search and replace tool for strings on the all system.
 
 The replacefs tool permits to perform massive and controlled string replacements in files over the all file system in an intuitive and pleasant way. You will be able to replace a defined string to another recursively from a path, or locally in a defined path or in a list of files.
 
-# installation
+# Installation
 ```sh
-with pip:
+With pip:
 sudo pip3 install replacefs
 
-with yay:
+With yay:
 yay -a replace
 
-with yaourt:
+With yaourt:
 yaourt -a replace
 ```
 
-# compatibility
+# Compatibility
 python >= 3
 
-# usage
+# Usage
 <pre>
 <b>replacefs</b> [-h] [-l] [-r] [-s] [-a] [-c]
         [--initial_string <b>INITIAL_STRING</b>]
@@ -60,7 +60,7 @@ python >= 3
 </pre>
 
 
-# examples
+# Examples
 for help:<br/>
 ```sh
 rp -h
@@ -82,15 +82,15 @@ replacefs -r titi toto test
 replacefs -s titi toto test01 test/test02
 ```
 
-# black list extensions
-all the extensions by default in the blacklist:<br/>
+# Black list extensions
+All the extensions by default in the blacklist:<br/>
 **"mp3", "MP3", "wav", "WAV", "m4a", "M4A", "aac", "AAC", "mp1", "MP1", "mp2", "MP2", "mpg", "MPG", "flac", "FLAC", "jpg", "JPG", "jpeg", "JPEG", "png", "PNG", "tif", "TIF", "gif", "GIF", "bmp", "BMP", "pjpeg", "PJPEG", "mp4", "MP4", "mpeg", "MPEG", "avi", "AVI", "wma", "WMA", "ogg", "OGG", "quicktime", "QUICKTIME", "webm", "WEBM", "mp2t", "MP2T", "flv", "FLV", "mov", "MOV", "webm", "WEBM", "mkv", "MKV", "class", "CLASS"**
 
 use   ***--all_extensions*** or ***--no_extension_filter*** to disable blacklist extension filter.
 use   ***--add_excluded_extensions*** or ***--filter_extensions*** to add some more
 
-# suggestions
-some useful bash functions with replace:<br/>
+# Suggestions
+Some useful bash functions with replace:<br/>
 ```sh
 function replace {
 #ex:  replace titi toto
