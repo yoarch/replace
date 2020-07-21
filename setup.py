@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="replacefs",
-    version="1.1.3",
+    version="1.2.0",
     python_requires='>=3',
     author="yoarch",
     author_email="yo.managements@gmail.com",
@@ -21,7 +21,7 @@ setuptools.setup(
     ],
     entry_points={
 	"console_scripts": [
-	"replacefs = replacefs.replacefs:main",
-	"rp = replacefs.replacefs:main"
+	"replacefs = replacefs.__main__:main",
+	"rp = replacefs.__main__:main"
         ]
     })
